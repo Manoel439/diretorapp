@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiretorApp - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- PWA Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#000000"/> <!-- Cor do tema definida no manifest -->
+
+    <!-- iOS specific PWA tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DiretorApp Admin">
+    <!-- <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"> -->
+
+
+    <style>
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 600px; border-radius: 8px; } 
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            left: 20px; 
+            background-color: #333;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+            text-align: center; 
+            font-size: 0.875rem;
+        }
+        @media (min-width: 640px) { 
+            .toast {
+                left: auto; 
+                width: auto;
+                min-width: 250px; 
+            }
+        }
+        .toast.show { opacity: 1; visibility: visible; }
+        .toast.error { background-color: #dc3545; }
+        .toast.success { background-color: #28a745; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div id="toast-container" class="toast"></div>
+
+    <header class="bg-white shadow-md p-4">
+        <div class="container mx-auto flex flex-col items-center"> 
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-700 text-center">DiretorApp - Admin</h1> 
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 mt-6">
+        <!-- Seção de Atores -->
+        <section id="actors-section" class="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-700 mb-4">Cadastro de Atores</h2>
+            <form id="actor-form" class="space-y-4">
+                <input type="hidden" id="actor-id">
+                <div>
+                    <label for="actor-name" class="block text-sm font-medium text-gray-700">Nome do Ator:</label>
+                    <input type="text" id="actor-name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="actor-obs" class="block text-sm font-medium text-gray-700">Observações (opcional):</label>
+                    <textarea id="actor-obs" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                </div>
+                <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Salvar Ator</button>
+            </form>
+            <div class="mt-6">
+                <h3 class="text-md sm:text-lg font-medium text-gray-700 mb-2">Atores Cadastrados</h3>
+                <ul id="actors-list" class="space-y-3"></ul> 
+            </div>
+        </section>
+
+        <!-- Seção de Peças -->
+        <section id="plays-section" class="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-700 mb-4">Cadastro de Peças</h2>
+            <form id="play-form" class="space-y-4">
+                <input type="hidden" id="play-id">
+                <div>
+                    <label for="play-title" class="block text-sm font-medium text-gray-700">Título da Peça:</label>
+                    <input type="text" id="play-title" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="play-date" class="block text-sm font-medium text-gray-700">Data de Apresentação:</label>
+                    <input type="date" id="play-date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="play-script-link" class="block text-sm font-medium text-gray-700">Link para Roteiro:</label>
+                    <input type="url" id="play-script-link" placeholder="https://exemplo.com/roteiro" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Atores na Peça e Personagens:</label>
+                    <div id="play-actors-list-form" class="mt-2 space-y-3 max-h-60 overflow-y-auto border border-gray-300 p-2 rounded-md">
+                        <!-- Checkboxes de atores e inputs de personagens -->
+                    </div>
+                </div>
+                <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Salvar Peça</button>
+            </form>
+            <div class="mt-6">
+                <h3 class="text-md sm:text-lg font-medium text-gray-700 mb-2">Peças Cadastradas</h3>
+                <ul id="plays-list-admin" class="space-y-3"></ul>
+            </div>
+        </section>
+
+        <!-- Seção de Ensaios -->
+        <section id="rehearsals-section" class="mb-8 p-4 sm:p-6 bg-white rounded-lg shadow">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-700 mb-4">Cadastro de Ensaios</h2>
+            <form id="rehearsal-form" class="space-y-4">
+                <input type="hidden" id="rehearsal-id">
+                <div>
+                    <label for="rehearsal-date" class="block text-sm font-medium text-gray-700">Data do Ensaio:</label>
+                    <input type="datetime-local" id="rehearsal-date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="rehearsal-location" class="block text-sm font-medium text-gray-700">Local:</label>
+                    <input type="text" id="rehearsal-location" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="rehearsal-obs" class="block text-sm font-medium text-gray-700">Observações (opcional):</label>
+                    <textarea id="rehearsal-obs" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                </div>
+                <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">Salvar Ensaio</button>
+            </form>
+            <div class="mt-6">
+                <h3 class="text-md sm:text-lg font-medium text-gray-700 mb-2">Ensaios Cadastrados</h3>
+                <ul id="rehearsals-list-admin" class="space-y-3"></ul>
+            </div>
+        </section>
+    </main>
+
+    <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="window.closeModal()">&times;</span>
+            <p id="delete-confirm-message" class="text-lg mb-4">Tem certeza que deseja excluir este item?</p>
+            <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 mt-4"> 
+                <button onclick="window.closeModal()" class="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">Cancelar</button>
+                <button id="confirm-delete-btn" class="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center p-4 text-sm text-gray-500 mt-8">
+        DiretorApp - Admin - &copy; <span id="current-year"></span>
+    </footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { 
+            getFirestore, collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy 
+        } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCp8otVXz5febEfoMmQN-WJH5Bz3F7fLQo",
+            authDomain: "grupo-teatral.firebaseapp.com",
+            projectId: "grupo-teatral",
+            storageBucket: "grupo-teatral.appspot.com", 
+            messagingSenderId: "343970443098",
+            appId: "1:343970443098:web:23a9e53ff08ebeecfecd63"
+        };
+
+        let app;
+        let db;
+
+        if (!firebaseConfig || !firebaseConfig.projectId || !firebaseConfig.apiKey || Object.keys(firebaseConfig).length < 5) { 
+            console.error("ERRO CRÍTICO: Configuração do Firebase (firebaseConfig) inválida.");
+            const mainElement = document.querySelector('main');
+            if(mainElement) mainElement.innerHTML = '<p class="text-center text-red-500 font-bold text-xl p-10">ERRO CRÍTICO: Configuração do Firebase inválida.</p>';
+            throw new Error("Configuração do Firebase inválida.");
+        } else {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                 console.log("Firebase inicializado com sucesso com projectId:", firebaseConfig.projectId);
+            } catch (e) {
+                console.error("ERRO CRÍTICO ao inicializar o Firebase:", e);
+                const mainElement = document.querySelector('main');
+                if(mainElement) mainElement.innerHTML = `<p class="text-center text-red-500 font-bold text-xl p-10">ERRO CRÍTICO ao inicializar o Firebase: ${e.message}.</p>`;
+                throw e; 
+            }
+        }
+
+        const toastContainer = document.getElementById('toast-container');
+        function showToast(message, type = 'info') { 
+            toastContainer.textContent = message;
+            toastContainer.className = `toast show ${type}`;
+            setTimeout(() => {
+                toastContainer.className = 'toast';
+            }, 3000);
+        }
+
+        const deleteModal = document.getElementById('delete-confirm-modal');
+        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+        let deleteAction = null; 
+
+        function closeModalInternal() { 
+            deleteModal.style.display = 'none';
+            deleteAction = null;
+        }
+        window.closeModal = closeModalInternal; 
+
+        function showDeleteModal(message, action) {
+            document.getElementById('delete-confirm-message').textContent = message;
+            deleteAction = action;
+            deleteModal.style.display = 'block';
+        }
+        
+        confirmDeleteBtn.onclick = function() {
+            if (deleteAction) deleteAction();
+            closeModalInternal();
+        }
+        window.onclick = function(event) {
+            if (event.target == deleteModal) closeModalInternal();
+        }
+
+        const actorForm = document.getElementById('actor-form');
+        const actorIdInput = document.getElementById('actor-id'); 
+        const actorNameInput = document.getElementById('actor-name');
+        const actorObsInput = document.getElementById('actor-obs');
+        const actorsListUL = document.getElementById('actors-list');
+        const actorsCollectionRef = collection(db, "actors"); 
+
+        function renderActors(actors) {
+            actorsListUL.innerHTML = '';
+            actors.forEach(actor => {
+                const li = document.createElement('li');
+                li.className = 'p-3 bg-gray-50 rounded-md shadow-sm flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:justify-between sm:items-center'; 
+                li.innerHTML = `
+                    <div class="flex-grow"> 
+                        <span class="font-medium text-gray-800">${actor.name}</span>
+                        ${actor.observations ? `<p class="text-sm text-gray-500">${actor.observations}</p>` : ''}
+                    </div>
+                    <div class="flex space-x-2 mt-2 sm:mt-0 self-end sm:self-center"> 
+                        <button onclick="window.editActor('${actor.id}')" class="text-sm bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600">Editar</button>
+                        <button onclick="window.confirmDeleteActor('${actor.id}')" class="text-sm bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600">Excluir</button>
+                    </div>
+                `;
+                actorsListUL.appendChild(li);
+            });
+        }
+
+        actorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const actorId = actorIdInput.value;
+            const actorData = {
+                name: actorNameInput.value,
+                observations: actorObsInput.value
+            };
+
+            try {
+                if (actorId) { 
+                    const actorDocRef = doc(db, "actors", actorId);
+                    await updateDoc(actorDocRef, actorData);
+                    showToast('Ator atualizado com sucesso!', 'success');
+                } else { 
+                    await addDoc(actorsCollectionRef, actorData);
+                    showToast('Ator salvo com sucesso!', 'success');
+                }
+                actorForm.reset();
+                actorIdInput.value = ''; 
+            } catch (error) {
+                showToast(`Erro ao salvar ator: ${error.message}`, 'error');
+                console.error('Erro ao salvar ator:', error);
+            }
+        });
+
+        window.editActor = async (id) => { 
+            try {
+                const actorDocRef = doc(db, "actors", id);
+                const docSnap = await getDoc(actorDocRef);
+                if (docSnap.exists()) {
+                    const actor = docSnap.data();
+                    actorIdInput.value = id; 
+                    actorNameInput.value = actor.name;
+                    actorObsInput.value = actor.observations;
+                    actorNameInput.focus();
+                    document.getElementById('actors-section').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    showToast('Ator não encontrado para edição.', 'error');
+                }
+            } catch (error) {
+                showToast(`Erro ao carregar ator para edição: ${error.message}`, 'error');
+            }
+        }
+        
+        window.confirmDeleteActor = (id) => { 
+            showDeleteModal(
+                'Tem certeza que deseja excluir este ator? Se ele estiver em alguma peça, será removido dela.', 
+                () => deleteActor(id)
+            );
+        }
+
+        async function deleteActor(id) {
+            try {
+                const actorDocRef = doc(db, "actors", id);
+                await deleteDoc(actorDocRef);
+                showToast('Ator excluído com sucesso!', 'success');
+                
+                const playsQuery = query(collection(db, "plays"));
+                const playsSnapshot = await getDocs(playsQuery);
+                const updatePromises = []; 
+                playsSnapshot.forEach((playDoc) => { 
+                    const playData = playDoc.data();
+                    if (playData.cast && playData.cast.some(member => member.actorId === id)) {
+                        const updatedCast = playData.cast.filter(member => member.actorId !== id);
+                        updatePromises.push(updateDoc(doc(db, "plays", playDoc.id), { cast: updatedCast }));
+                    }
+                });
+                await Promise.all(updatePromises); 
+
+            } catch (error) {
+                showToast(`Erro ao excluir ator: ${error.message}`, 'error');
+                console.error('Erro ao excluir ator e atualizar peças:', error);
+            }
+        }
+
+        const playForm = document.getElementById('play-form');
+        const playIdInput = document.getElementById('play-id');
+        const playTitleInput = document.getElementById('play-title');
+        const playDateInput = document.getElementById('play-date');
+        const playScriptLinkInput = document.getElementById('play-script-link');
+        const playActorsListFormDiv = document.getElementById('play-actors-list-form');
+        const playsListAdminUL = document.getElementById('plays-list-admin');
+        const playsCollectionRef = collection(db, "plays");
+        let allActorsCache = []; 
+
+        function populateActorsForPlayForm(actors, selectedCast = []) {
+            allActorsCache = actors; 
+            playActorsListFormDiv.innerHTML = '';
+            if (actors.length === 0) {
+                playActorsListFormDiv.innerHTML = '<p class="text-sm text-gray-500">Nenhum ator cadastrado. Cadastre atores primeiro.</p>';
+                return;
+            }
+            actors.forEach(actor => {
+                const castMember = selectedCast.find(member => member.actorId === actor.id);
+                const isChecked = !!castMember;
+                const characterName = castMember ? castMember.characterName : '';
+
+                const actorDiv = document.createElement('div');
+                actorDiv.className = 'flex flex-col items-start space-y-1 py-2 border-b border-gray-200 last:border-b-0 md:flex-row md:items-center md:space-y-0 md:space-x-2';
+                actorDiv.innerHTML = `
+                    <div class="flex items-center w-full md:w-auto"> 
+                        <input type="checkbox" id="form-actor-${actor.id}" value="${actor.id}" data-actor-name="${actor.name}" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2">
+                        <label for="form-actor-${actor.id}" class="text-sm text-gray-700 flex-grow">${actor.name}</label>
+                    </div>
+                    <input type="text" placeholder="Personagem" value="${characterName}" class="character-name-input mt-1 md:mt-0 block w-full md:w-1/2 px-2 py-1 border border-gray-300 rounded-md shadow-sm sm:text-sm" ${!isChecked ? 'disabled' : ''}>
+                `;
+                playActorsListFormDiv.appendChild(actorDiv);
+
+                const checkbox = actorDiv.querySelector('input[type="checkbox"]');
+                const charInput = actorDiv.querySelector('.character-name-input');
+                checkbox.addEventListener('change', () => {
+                    charInput.disabled = !checkbox.checked;
+                    if (!checkbox.checked) charInput.value = '';
+                });
+            });
+        }
+        
+        function renderPlaysAdmin(plays) {
+            playsListAdminUL.innerHTML = '';
+            plays.forEach(play => {
+                const li = document.createElement('li');
+                li.className = 'p-3 bg-gray-50 rounded-md shadow-sm flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:justify-between sm:items-start'; 
+                
+                let castHtml = '<ul class="list-disc list-inside text-sm text-gray-600 mt-1">';
+                if (play.cast && play.cast.length > 0) {
+                    play.cast.forEach(member => {
+                        const actor = allActorsCache.find(a => a.id === member.actorId);
+                        const actorName = actor ? actor.name : 'Ator Desconhecido';
+                        castHtml += `<li>${actorName} como ${member.characterName}</li>`;
+                    });
+                } else {
+                    castHtml += '<li>Nenhum ator no elenco.</li>';
+                }
+                castHtml += '</ul>';
+
+                li.innerHTML = `
+                    <div class="flex-grow"> 
+                        <h4 class="font-medium text-gray-800">${play.title}</h4>
+                        <p class="text-sm text-gray-500">Data: ${new Date(play.date + 'T00:00:00').toLocaleDateString()}</p>
+                        <p class="text-sm text-gray-500">Roteiro: <a href="${play.scriptLink}" target="_blank" class="text-blue-500 hover:underline">${play.scriptLink || 'N/A'}</a></p>
+                        <p class="text-sm font-semibold text-gray-700 mt-1">Elenco:</p>
+                        ${castHtml}
+                    </div>
+                    <div class="flex flex-col space-y-2 mt-2 sm:mt-0 sm:ml-4 sm:flex-col sm:space-y-1 self-start sm:self-auto"> 
+                        <button onclick="window.editPlay('${play.id}')" class="w-full sm:w-auto text-sm bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600">Editar</button>
+                        <button onclick="window.confirmDeletePlay('${play.id}')" class="w-full sm:w-auto text-sm bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600">Excluir</button>
+                    </div>
+                `;
+                playsListAdminUL.appendChild(li);
+            });
+        }
+
+        playForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const playId = playIdInput.value;
+            const cast = [];
+            const actorCheckboxes = playActorsListFormDiv.querySelectorAll('input[type="checkbox"]:checked');
+            let characterMissing = false;
+            actorCheckboxes.forEach(checkbox => {
+                const actorId = checkbox.value; 
+                const characterInput = checkbox.closest('div.flex').querySelector('.character-name-input'); 
+                const characterName = characterInput ? characterInput.value.trim() : '';
+                if (!characterName) {
+                    characterMissing = true;
+                }
+                cast.push({ actorId, characterName });
+            });
+
+            if (characterMissing) {
+                showToast('Por favor, defina o nome do personagem para todos os atores selecionados.', 'error');
+                return;
+            }
+            
+            const playData = {
+                title: playTitleInput.value,
+                date: playDateInput.value,
+                scriptLink: playScriptLinkInput.value,
+                cast: cast
+            };
+
+            try {
+                if (playId) { 
+                    const playDocRef = doc(db, "plays", playId);
+                    await updateDoc(playDocRef, playData);
+                    showToast('Peça atualizada com sucesso!', 'success');
+                } else { 
+                    await addDoc(playsCollectionRef, playData);
+                    showToast('Peça salva com sucesso!', 'success');
+                }
+                playForm.reset(); 
+                populateActorsForPlayForm(allActorsCache); 
+            } catch (error) {
+                showToast(`Erro ao salvar peça: ${error.message}`, 'error');
+                console.error("Erro ao salvar peça:", error);
+            }
+        });
+
+        window.editPlay = async (id) => { 
+            try {
+                const playDocRef = doc(db, "plays", id);
+                const docSnap = await getDoc(playDocRef);
+                if (docSnap.exists()) {
+                    const play = docSnap.data();
+                    playIdInput.value = id;
+                    playTitleInput.value = play.title;
+                    playDateInput.value = play.date;
+                    playScriptLinkInput.value = play.scriptLink;
+                    
+                    populateActorsForPlayForm(allActorsCache, play.cast);
+                    localStorage.setItem(`editingPlayCast_${id}`, JSON.stringify(play.cast || []));
+
+                    playTitleInput.focus();
+                    document.getElementById('plays-section').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    showToast('Peça não encontrada para edição.', 'error');
+                }
+            } catch (error) {
+                showToast(`Erro ao carregar peça para edição: ${error.message}`, 'error');
+                console.error("Erro ao carregar peça para edição:", error);
+            }
+        }
+        
+        window.confirmDeletePlay = (id) => { 
+            showDeleteModal('Tem certeza que deseja excluir esta peça?', () => deletePlay(id));
+        }
+
+        async function deletePlay(id) {
+             try {
+                const playDocRef = doc(db, "plays", id);
+                await deleteDoc(playDocRef);
+                showToast('Peça excluída com sucesso!', 'success');
+            } catch (error) {
+                showToast(`Erro ao excluir peça: ${error.message}`, 'error');
+                console.error("Erro ao excluir peça:", error);
+            }
+        }
+
+        const rehearsalForm = document.getElementById('rehearsal-form');
+        const rehearsalIdInput = document.getElementById('rehearsal-id');
+        const rehearsalDateInput = document.getElementById('rehearsal-date');
+        const rehearsalLocationInput = document.getElementById('rehearsal-location');
+        const rehearsalObsInput = document.getElementById('rehearsal-obs');
+        const rehearsalsListAdminUL = document.getElementById('rehearsals-list-admin');
+        const rehearsalsCollectionRef = collection(db, "rehearsals");
+        
+        function renderRehearsalsAdmin(rehearsals) {
+            rehearsalsListAdminUL.innerHTML = '';
+            rehearsals.forEach(rehearsal => {
+                const li = document.createElement('li');
+                li.className = 'p-3 bg-gray-50 rounded-md shadow-sm flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:justify-between sm:items-center'; 
+                const dateObj = new Date(rehearsal.date);
+                const formattedDate = `${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+                li.innerHTML = `
+                    <div class="flex-grow"> 
+                        <span class="font-medium text-gray-800">Data: ${formattedDate}</span>
+                        <p class="text-sm text-gray-600">Local: ${rehearsal.location}</p>
+                        ${rehearsal.observations ? `<p class="text-sm text-gray-500">Obs: ${rehearsal.observations}</p>` : ''}
+                    </div>
+                    <div class="flex space-x-2 mt-2 sm:mt-0 self-end sm:self-center"> 
+                        <button onclick="window.editRehearsal('${rehearsal.id}')" class="text-sm bg-yellow-500 text-white px-3 py-1.5 rounded-md hover:bg-yellow-600">Editar</button>
+                        <button onclick="window.confirmDeleteRehearsal('${rehearsal.id}')" class="text-sm bg-red-500 text-white px-3 py-1.5 rounded-md hover:bg-red-600">Excluir</button>
+                    </div>
+                `;
+                rehearsalsListAdminUL.appendChild(li);
+            });
+        }
+        
+        rehearsalForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const rehearsalId = rehearsalIdInput.value;
+            const rehearsalData = {
+                date: rehearsalDateInput.value,
+                location: rehearsalLocationInput.value,
+                observations: rehearsalObsInput.value
+            };
+            try {
+                if (rehearsalId) { 
+                    const rehearsalDocRef = doc(db, "rehearsals", rehearsalId);
+                    await updateDoc(rehearsalDocRef, rehearsalData);
+                    showToast('Ensaio atualizado com sucesso!', 'success');
+                } else { 
+                    await addDoc(rehearsalsCollectionRef, rehearsalData);
+                    showToast('Ensaio salvo com sucesso!', 'success');
+                }
+                rehearsalForm.reset();
+                rehearsalIdInput.value = '';
+            } catch (error) {
+                showToast(`Erro ao salvar ensaio: ${error.message}`, 'error');
+                console.error("Erro ao salvar ensaio:", error);
+            }
+        });
+
+        window.editRehearsal = async (id) => { 
+            try {
+                const rehearsalDocRef = doc(db, "rehearsals", id);
+                const docSnap = await getDoc(rehearsalDocRef);
+                if (docSnap.exists()) {
+                    const rehearsal = docSnap.data();
+                    rehearsalIdInput.value = id;
+                    let dateForInput = rehearsal.date;
+                    if (dateForInput.length > 16) { 
+                        dateForInput = dateForInput.substring(0, 16);
+                    }
+                    rehearsalDateInput.value = dateForInput; 
+                    rehearsalLocationInput.value = rehearsal.location;
+                    rehearsalObsInput.value = rehearsal.observations;
+                    rehearsalDateInput.focus();
+                    document.getElementById('rehearsals-section').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    showToast('Ensaio não encontrado para edição.', 'error');
+                }
+            } catch (error) {
+                showToast(`Erro ao carregar ensaio para edição: ${error.message}`, 'error');
+            }
+        }
+
+        window.confirmDeleteRehearsal = (id) => { 
+            showDeleteModal('Tem certeza que deseja excluir este ensaio?', () => deleteRehearsal(id));
+        }
+
+        async function deleteRehearsal(id) {
+            try {
+                const rehearsalDocRef = doc(db, "rehearsals", id);
+                await deleteDoc(rehearsalDocRef);
+                showToast('Ensaio excluído com sucesso!', 'success');
+            } catch (error) {
+                showToast(`Erro ao excluir ensaio: ${error.message}`, 'error');
+                console.error("Erro ao excluir ensaio:", error);
+            }
+        }
+
+        function setupRealtimeListeners() {
+            if (!db) { 
+                console.error("Firestore DB (db) não está definido. Listeners não podem ser configurados.");
+                showToast("ERRO: Conexão com Firebase falhou. Listeners desativados.", "error");
+                return;
+            }
+
+            const actorsQuery = query(actorsCollectionRef, orderBy("name"));
+            onSnapshot(actorsQuery, (querySnapshot) => {
+                const actors = [];
+                querySnapshot.forEach((doc) => {
+                    actors.push({ id: doc.id, ...doc.data() });
+                });
+                allActorsCache = actors; 
+                renderActors(actors);
+                
+                let currentlyEditingPlayCast = [];
+                const editingPlayId = playForm.querySelector('#play-id').value;
+                if(editingPlayId) {
+                    try {
+                        currentlyEditingPlayCast = JSON.parse(localStorage.getItem(`editingPlayCast_${editingPlayId}`) || '[]');
+                    } catch (e) { console.warn("Não foi possível parsear editingPlayCast do localStorage"); }
+                }
+                populateActorsForPlayForm(actors, currentlyEditingPlayCast);
+            }, (error) => {
+                showToast(`Erro no listener de atores: ${error.message}`, 'error');
+                console.error("Actors listener error: ", error);
+            });
+
+            const playsQuery = query(playsCollectionRef, orderBy("date"));
+            onSnapshot(playsQuery, (querySnapshot) => {
+                const plays = [];
+                querySnapshot.forEach((doc) => {
+                    plays.push({ id: doc.id, ...doc.data() });
+                });
+                renderPlaysAdmin(plays); 
+            }, (error) => {
+                showToast(`Erro no listener de peças: ${error.message}`, 'error');
+                console.error("Plays listener error: ", error);
+            });
+
+            const rehearsalsQuery = query(rehearsalsCollectionRef, orderBy("date"));
+            onSnapshot(rehearsalsQuery, (querySnapshot) => {
+                const rehearsals = [];
+                querySnapshot.forEach((doc) => {
+                    rehearsals.push({ id: doc.id, ...doc.data() });
+                });
+                renderRehearsalsAdmin(rehearsals);
+            }, (error) => {
+                showToast(`Erro no listener de ensaios: ${error.message}`, 'error');
+                console.error("Rehearsals listener error: ", error);
+            });
+        }
+
+
+        // Service Worker Registration (Admin page)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js') // Mesmo service worker para ambas as páginas
+                .then(registration => {
+                    console.log('Service Worker (admin) registrado com sucesso: ', registration);
+                })
+                .catch(error => {
+                    console.log('Falha ao registrar Service Worker (admin): ', error);
+                });
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!db) { 
+                 console.error("ERRO CRÍTICO NO DOMContentLoaded: Firebase DB (db) não está definido. Isso indica um problema sério na inicialização.");
+                 showToast("ERRO CRÍTICO: Firebase DB não inicializado. Verifique a configuração.", "error");
+                 const mainElement = document.querySelector('main');
+                 if (mainElement && !mainElement.innerHTML.includes("ERRO CRÍTICO")) { 
+                    mainElement.innerHTML = '<p class="text-center text-red-500 font-bold text-xl p-10">ERRO CRÍTICO: Banco de dados Firebase não inicializado. Verifique a configuração.</p>' + mainElement.innerHTML;
+                 }
+                 return; 
+            }
+
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+            setupRealtimeListeners(); 
+        });
+
+        playForm.addEventListener('reset', () => {
+            const previousPlayId = playIdInput.value; 
+            if (previousPlayId) {
+                 localStorage.removeItem(`editingPlayCast_${previousPlayId}`);
+            }
+            populateActorsForPlayForm(allActorsCache, []);
+        });
+
+    </script>
+</body>
+</html>

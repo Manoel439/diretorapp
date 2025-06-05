@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiretorApp - Página Pública</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- PWA Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007bff"/> <!-- Cor do tema definida no manifest -->
+
+    <!-- iOS specific PWA tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- Pode ser 'default', 'black', ou 'black-translucent' -->
+    <meta name="apple-mobile-web-app-title" content="DiretorApp">
+    <!-- Você pode adicionar links para apple-touch-icon aqui se desejar ícones específicos para iOS -->
+    <!-- <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"> -->
+
+    <style>
+         .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            left: 20px; 
+            background-color: #dc3545; 
+            color: white;
+            padding: 15px;
+            border-radius: 8px; /* Aumentado o raio da borda */
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden; /* Inicia escondido */
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+            text-align: center; 
+            font-size: 0.875rem; /* Tamanho de fonte um pouco menor */
+        }
+        @media (min-width: 640px) { 
+            .toast {
+                left: auto; 
+                width: auto;
+                min-width: 250px; 
+            }
+        }
+        .toast.show { opacity: 1; visibility: visible; }
+
+        /* Estilo para o botão de instalar PWA */
+        #installPwaButton {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 1001; /* Acima do toast se necessário */
+            display: none; /* Escondido por padrão */
+        }
+         #installPwaButton:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div id="public-toast-container" class="toast"></div>
+    <button id="installPwaButton">Adicionar à Tela Inicial</button>
+
+    <header class="bg-white shadow-md p-4">
+        <div class="container mx-auto flex flex-col items-center"> 
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-700 text-center">DiretorApp</h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 mt-6">
+        <section id="public-plays-section" class="mb-8">
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 border-b-2 border-blue-500 pb-2">Nossas Peças</h2>
+            <div id="public-plays-list" class="space-y-6">
+                <p class="text-gray-500">A carregar peças...</p>
+            </div>
+        </section>
+
+        <section id="public-rehearsals-section" class="mb-8">
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 border-b-2 border-green-500 pb-2">Próximos Ensaios</h2>
+            <div id="public-rehearsals-list" class="space-y-4">
+                <p class="text-gray-500">A carregar ensaios...</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="text-center p-4 text-sm text-gray-500 mt-8">
+        DiretorApp - &copy; <span id="current-year-public"></span>
+    </footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCp8otVXz5febEfoMmQN-WJH5Bz3F7fLQo",
+            authDomain: "grupo-teatral.firebaseapp.com",
+            projectId: "grupo-teatral",
+            storageBucket: "grupo-teatral.appspot.com",
+            messagingSenderId: "343970443098",
+            appId: "1:343970443098:web:23a9e53ff08ebeecfecd63"
+        };
+
+        let app;
+        let db;
+
+        if (!firebaseConfig || !firebaseConfig.projectId || !firebaseConfig.apiKey || Object.keys(firebaseConfig).length < 5) { 
+            console.error("ERRO CRÍTICO: Configuração do Firebase (firebaseConfig) inválida.");
+            const mainElement = document.querySelector('main');
+            if (mainElement) mainElement.innerHTML = '<p class="text-center text-red-500 font-bold text-xl p-10">ERRO CRÍTICO: Configuração do Firebase inválida.</p>';
+            throw new Error("Configuração do Firebase inválida.");
+        } else {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                console.log("Firebase inicializado com sucesso (público) com projectId:", firebaseConfig.projectId);
+            } catch (e) {
+                console.error("ERRO CRÍTICO ao inicializar o Firebase (público):", e);
+                const mainElement = document.querySelector('main');
+                if (mainElement) mainElement.innerHTML = `<p class="text-center text-red-500 font-bold text-xl p-10">ERRO CRÍTICO ao inicializar o Firebase: ${e.message}.</p>`;
+                throw e; 
+            }
+        }
+
+        const publicToastContainer = document.getElementById('public-toast-container');
+        function showPublicToast(message, type = 'error') { // Default type to error for public page notifications
+            publicToastContainer.textContent = message;
+            publicToastContainer.className = `toast show ${type}`; 
+            setTimeout(() => {
+                publicToastContainer.className = 'toast';
+            }, 4000);
+        }
+
+        let actorsCache = new Map(); 
+
+        async function fetchAllActors() {
+             if (!db) { 
+                console.error("fetchAllActors: Instância do DB não está disponível.");
+                showPublicToast("Erro: Conexão com banco de dados falhou.");
+                return;
+            }
+            try {
+                const actorsSnapshot = await getDocs(collection(db, "actors"));
+                actorsCache.clear();
+                actorsSnapshot.forEach(doc => {
+                    actorsCache.set(doc.id, doc.data().name);
+                });
+                 console.log("Cache de atores preenchido/atualizado:", actorsCache);
+            } catch (error) {
+                console.error("Erro ao buscar atores para cache:", error);
+                showPublicToast("Erro ao carregar dados de atores.");
+            }
+        }
+
+        function renderPublicPlays(plays) {
+            const playsListDiv = document.getElementById('public-plays-list');
+            playsListDiv.innerHTML = '';
+
+            if (plays.length === 0) {
+                playsListDiv.innerHTML = '<p class="text-gray-600">Nenhuma peça programada no momento.</p>';
+                return;
+            }
+            
+            plays.forEach(play => {
+                const playCard = document.createElement('div');
+                playCard.className = 'bg-white p-4 sm:p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300'; 
+
+                let castHtml = '<ul class="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">';
+                if (play.cast && play.cast.length > 0) {
+                    play.cast.forEach(member => {
+                        const actorName = actorsCache.get(member.actorId) || 'Ator Desconhecido';
+                        castHtml += `<li><strong>${actorName}</strong> como <em>${member.characterName}</em></li>`;
+                    });
+                } else {
+                    castHtml += '<li>Elenco a ser definido.</li>';
+                }
+                castHtml += '</ul>';
+                
+                const formattedDate = play.date ? new Date(play.date + 'T00:00:00').toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Data a definir';
+
+                playCard.innerHTML = `
+                    <h3 class="text-lg sm:text-xl font-bold text-blue-700 mb-2">${play.title}</h3>
+                    <div class="space-y-1"> 
+                        <p class="text-sm sm:text-md text-gray-700"><strong class="font-semibold">Data de Apresentação:</strong> ${formattedDate}</p>
+                        <p class="text-sm sm:text-md text-gray-700">
+                            <strong class="font-semibold">Roteiro:</strong> 
+                            ${play.scriptLink ? `<a href="${play.scriptLink}" target="_blank" class="text-blue-500 hover:underline hover:text-blue-700 break-all">Acessar roteiro</a>` : 'Link não disponível'}
+                        </p>
+                    </div>
+                    <div class="mt-3"> 
+                        <h4 class="text-sm sm:text-md font-semibold text-gray-700">Elenco:</h4>
+                        ${castHtml}
+                    </div>
+                `;
+                playsListDiv.appendChild(playCard);
+            });
+        }
+
+        function renderPublicRehearsals(rehearsals) {
+            const rehearsalsListDiv = document.getElementById('public-rehearsals-list');
+            rehearsalsListDiv.innerHTML = '';
+
+            if (rehearsals.length === 0) {
+                rehearsalsListDiv.innerHTML = '<p class="text-gray-600">Nenhum ensaio agendado no momento.</p>';
+                return;
+            }
+
+            rehearsals.forEach(rehearsal => {
+                const rehearsalItem = document.createElement('div');
+                rehearsalItem.className = 'bg-white p-4 rounded-md shadow-md'; 
+                
+                const dateObj = new Date(rehearsal.date);
+                const formattedDate = `${dateObj.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'})} às ${dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+                rehearsalItem.innerHTML = `
+                    <p class="text-md font-semibold text-green-700">${formattedDate}</p>
+                    <p class="text-sm text-gray-700 mt-1"><strong>Local:</strong> ${rehearsal.location}</p>
+                    ${rehearsal.observations ? `<p class="text-sm text-gray-500 mt-1"><em>Observações: ${rehearsal.observations}</em></p>` : ''}
+                `;
+                rehearsalsListDiv.appendChild(rehearsalItem);
+            });
+        }
+        
+        // PWA Installation Logic
+        let deferredPrompt;
+        const installButton = document.getElementById('installPwaButton');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt foi disparado');
+            // Previne o mini-infobar de aparecer no Chrome
+            e.preventDefault();
+            // Guarda o evento para que possa ser disparado depois.
+            deferredPrompt = e;
+            // Atualiza a UI para notificar o usuário que ele pode adicionar à tela inicial
+            if (installButton) {
+                installButton.style.display = 'block';
+            }
+        });
+
+        if (installButton) {
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    // Mostra o prompt de instalação
+                    deferredPrompt.prompt();
+                    // Espera o usuário responder ao prompt
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    // Nós só podemos usar o prompt uma vez, por isso limpamos
+                    deferredPrompt = null;
+                    // Esconde o botão, já que ele não pode mais ser usado.
+                    installButton.style.display = 'none';
+                }
+            });
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('DiretorApp foi instalado.');
+            // Esconde o botão de instalação se o app for instalado
+            if (installButton) {
+                installButton.style.display = 'none';
+            }
+            deferredPrompt = null;
+        });
+
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registrado com sucesso: ', registration);
+                })
+                .catch(error => {
+                    console.log('Falha ao registrar Service Worker: ', error);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!db) { 
+                 console.error("ERRO CRÍTICO NO DOMContentLoaded (público): Firebase DB (db) não está definido.");
+                 showPublicToast("ERRO CRÍTICO: Firebase DB não inicializado.");
+                 const mainElement = document.querySelector('main');
+                 if (mainElement && !mainElement.innerHTML.includes("ERRO CRÍTICO")) { 
+                    mainElement.innerHTML = '<p class="text-center text-red-500 font-bold text-xl p-10">ERRO CRÍTICO: Banco de dados Firebase não inicializado.</p>' + mainElement.innerHTML;
+                 }
+                 document.getElementById('public-plays-list').innerHTML = '<p class="text-red-500">Falha na inicialização do Firebase.</p>';
+                 document.getElementById('public-rehearsals-list').innerHTML = '';
+                 return; 
+            }
+
+            document.getElementById('current-year-public').textContent = new Date().getFullYear();
+            
+            await fetchAllActors(); 
+
+            const actorsQuery = query(collection(db, "actors"));
+            onSnapshot(actorsQuery, async (snapshot) => {
+                console.log("Listener de atores (público) acionado.");
+                let needsPlayRenderUpdate = false;
+                if (snapshot.docChanges().length > 0) { // Verifica se houve alguma mudança real
+                    await fetchAllActors(); // Atualiza o cache
+                    needsPlayRenderUpdate = true; // Sinaliza que as peças precisam ser re-renderizadas
+                }
+                
+                if (needsPlayRenderUpdate) {
+                    console.log("Cache de atores atualizado ou dados modificados, buscando peças novamente.");
+                    const playsSnapshot = await getDocs(query(collection(db, "plays"), orderBy("date")));
+                    const plays = [];
+                    playsSnapshot.forEach((doc) => {
+                        plays.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderPublicPlays(plays);
+                }
+
+            }, (error) => {
+                console.error("Public actors listener error: ", error);
+                showPublicToast("Erro ao atualizar dados de atores.");
+            });
+
+            const playsQuery = query(collection(db, "plays"), orderBy("date"));
+            onSnapshot(playsQuery, (snapshot) => {
+                console.log("Listener de peças (público) acionado.");
+                const plays = [];
+                snapshot.forEach((doc) => {
+                    plays.push({ id: doc.id, ...doc.data() });
+                });
+                renderPublicPlays(plays); 
+            }, (error) => {
+                console.error("Public plays listener error: ", error);
+                document.getElementById('public-plays-list').innerHTML = '<p class="text-red-500">Não foi possível carregar as peças. Tente novamente mais tarde.</p>';
+                showPublicToast(`Erro ao carregar peças: ${error.message}`);
+            });
+
+            const rehearsalsQuery = query(collection(db, "rehearsals"), orderBy("date"));
+            onSnapshot(rehearsalsQuery, (snapshot) => {
+                console.log("Listener de ensaios (público) acionado.");
+                const rehearsals = [];
+                snapshot.forEach((doc) => {
+                    rehearsals.push({ id: doc.id, ...doc.data() });
+                });
+                renderPublicRehearsals(rehearsals);
+            }, (error) => {
+                console.error("Public rehearsals listener error: ", error);
+                document.getElementById('public-rehearsals-list').innerHTML = '<p class="text-red-500">Não foi possível carregar os ensaios. Tente novamente mais tarde.</p>';
+                showPublicToast(`Erro ao carregar ensaios: ${error.message}`);
+            });
+        });
+    </script></body>
+</html>
