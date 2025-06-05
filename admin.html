@@ -346,7 +346,7 @@
                 const characterName = castMember ? castMember.characterName : '';
 
                 const actorDiv = document.createElement('div');
-                actorDiv.className = 'flex flex-col items-start space-y-1 py-2 border-b border-gray-200 last:border-b-0 md:flex-row md:items-center md:space-y-0 md:space-x-2';
+                actorDiv.className = 'actor-row-item flex flex-col items-start space-y-1 py-2 border-b border-gray-200 last:border-b-0 md:flex-row md:items-center md:space-y-0 md:space-x-2'; // Adicionada classe 'actor-row-item'
                 actorDiv.innerHTML = `
                     <div class="flex items-center w-full md:w-auto"> 
                         <input type="checkbox" id="form-actor-${actor.id}" value="${actor.id}" data-actor-name="${actor.name}" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded mr-2">
@@ -406,11 +406,12 @@
             const cast = [];
             const actorCheckboxes = playActorsListFormDiv.querySelectorAll('input[type="checkbox"]:checked');
             let characterMissing = false;
+
             actorCheckboxes.forEach(checkbox => {
                 const actorId = checkbox.value; 
-                // CORREÇÃO: Acessar o input do personagem corretamente
-                const actorRowDiv = checkbox.parentElement.parentElement; // O div que contém tanto o checkbox quanto o input do personagem
-                const characterInput = actorRowDiv.querySelector('.character-name-input');
+                // CORREÇÃO v2: Navegar para o elemento pai que contém a linha do ator ('.actor-row-item')
+                const actorRowElement = checkbox.closest('.actor-row-item');
+                const characterInput = actorRowElement ? actorRowElement.querySelector('.character-name-input') : null;
                 
                 const characterName = characterInput ? characterInput.value.trim() : '';
                 if (!characterName) {
