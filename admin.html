@@ -408,7 +408,10 @@
             let characterMissing = false;
             actorCheckboxes.forEach(checkbox => {
                 const actorId = checkbox.value; 
-                const characterInput = checkbox.closest('div.flex').querySelector('.character-name-input'); 
+                // CORREÇÃO: Acessar o input do personagem corretamente
+                const actorRowDiv = checkbox.parentElement.parentElement; // O div que contém tanto o checkbox quanto o input do personagem
+                const characterInput = actorRowDiv.querySelector('.character-name-input');
+                
                 const characterName = characterInput ? characterInput.value.trim() : '';
                 if (!characterName) {
                     characterMissing = true;
@@ -634,11 +637,9 @@
             });
         }
 
-
-        // Service Worker Registration (Admin page)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js') // Mesmo service worker para ambas as páginas
+                navigator.serviceWorker.register('/service-worker.js') 
                 .then(registration => {
                     console.log('Service Worker (admin) registrado com sucesso: ', registration);
                 })
@@ -647,7 +648,6 @@
                 });
             });
         }
-
 
         document.addEventListener('DOMContentLoaded', () => {
             if (!db) { 
